@@ -1,0 +1,168 @@
+import streamlit as st
+import sympy as sp
+import numpy as np
+import os
+
+# -----------------------------
+# API Key Setup
+# -----------------------------
+# -----------------------------
+# Physics Solver Class
+# -----------------------------
+class PhysicsSolver:
+    def __init__(self):
+        self.g = 9.81  # gravitational acceleration (m/s²)
+        self.constants = {
+            'e': 1.602e-19,        # elementary charge (C)
+            'k': 8.99e9,           # Coulomb constant (N·m²/C²)
+            'epsilon_0': 8.854e-12,
+            'mu_0': 4e-7 * np.pi,
+            'h': 6.626e-34,        # Planck constant (J·s)
+            'c': 3e8,              # speed of light (m/s)
+            'sigma': 5.67e-8       # Stefan–Boltzmann constant (W/m²·K⁴)
+        }
+
+    def solve_projectile_motion(self, v0, theta_deg):
+        theta = np.radians(theta_deg)
+        t_flight = 2 * v0 * np.sin(theta) / self.g
+        h_max = (v0**2 * np.sin(theta)**2) / (2 * self.g)
+        range_ = (v0**2 * np.sin(2 * theta)) / self.g
+        return {
+            'Time of Flight (s)': t_flight,
+            'Maximum Height (m)': h_max,
+            'Range (m)': range_
+        }
+
+    def newtons_second_law(self, F, m):
+        if m == 0:
+            return {'Error': 'Mass cannot be zero.'}
+        return {'Acceleration (m/s²)': F / m}
+
+    def coulombs_law(self, q1, q2, r):
+        if r == 0:
+            return {'Error': 'Distance cannot be zero.'}
+        F = self.constants['k'] * q1 * q2 / r**2
+        return {'Electrostatic Force (N)': F}
+
+    def ohms_law(self, V=None, I=None, R=None):
+        try:
+            if V is None and I is not None and R is not None:
+                return {'Voltage (V)': I * R}
+            elif I is None and V is not None and R is not None:
+                return {'Current (A)': V / R}
+            elif R is None and V is not None and I is not None:
+                return {'Resistance (Ω)': V / I}
+            else:
+                return {'Error': 'Provide two values.'}
+        except ZeroDivisionError:
+            return {'Error': 'Division by zero.'}
+
+    def circular_motion(self, v, r):
+        if r == 0:
+            return {'Error': 'Radius cannot be zero.'}
+        a = v**2 / r
+        return {'Centripetal Acceleration (m/s²)': a}
+
+    def lorentz_force(self, q, v, B, angle_deg):
+        angle = np.radians(angle_deg)
+        F = q * v * B * np.sin(angle)
+        return {'Lorentz Force (N)': F}
+
+    def capacitor_energy(self, C, V):
+        U = 0.5 * C * V**2
+        return {'Stored Energy (J)': U}
+
+    def blackbody_radiation(self, T):
+        power = self.constants['sigma'] * T**4
+        return {'Radiated Power per m² (W/m²)': power}
+
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.set_page_config(page_title="Physics Solver", layout="centered")
+st.title("⚛️ Physics Solver")
+st.markdown("Solve a wide range of fundamental physics problems interactively.")
+
+solver = PhysicsSolver()
+
+problem = st.selectbox("📚 Select a physics topic", [
+    "Projectile Motion",
+    "Newton's Second Law",
+    "Coulomb's Law",
+    "Ohm's Law",
+    "Uniform Circular Motion",
+    "Lorentz Force",
+    "Capacitor Energy",
+    "Blackbody Radiation"
+])
+
+# -----------------------------
+# Input Forms for Each Problem
+# -----------------------------
+if problem == "Projectile Motion":
+    st.subheader("Projectile Motion")
+    v0 = st.number_input("Initial velocity (m/s)", min_value=0.0, value=20.0)
+    angle = st.number_input("Launch angle (degrees)", min_value=0.0, max_value=90.0, value=45.0)
+    if st.button("Solve"):
+        st.write(solver.solve_projectile_motion(v0, angle))
+
+elif problem == "Newton's Second Law":
+    st.subheader("Newton's Second Law: F = ma")
+    F = st.number_input("Force (N)", value=10.0)
+    m = st.number_input("Mass (kg)", min_value=0.001, value=2.0)
+    if st.button("Solve"):
+        st.write(solver.newtons_second_law(F, m))
+
+elif problem == "Coulomb's Law":
+    st.subheader("Coulomb's Law: F = k*q1*q2/r²")
+    q1 = st.number_input("Charge q1 (C)", format="%.2e", value=1e-6)
+    q2 = st.number_input("Charge q2 (C)", format="%.2e", value=2e-6)
+    r = st.number_input("Distance between charges (m)", min_value=0.0001, value=0.1)
+    if st.button("Solve"):
+        st.write(solver.coulombs_law(q1, q2, r))
+
+elif problem == "Ohm's Law":
+    st.subheader("Ohm’s Law: V = IR")
+    st.markdown("Leave **one field blank** to calculate it.")
+    V = st.text_input("Voltage (V)")
+    I = st.text_input("Current (A)")
+    R = st.text_input("Resistance (Ω)")
+
+    def parse_val(s):
+        try: return float(s)
+        except: return None
+
+    V, I, R = parse_val(V), parse_val(I), parse_val(R)
+
+    if st.button("Solve"):
+        st.write(solver.ohms_law(V=V, I=I, R=R))
+
+elif problem == "Uniform Circular Motion":
+    st.subheader("Uniform Circular Motion: a = v²/r")
+    v = st.number_input("Speed (m/s)", min_value=0.0, value=10.0)
+    r = st.number_input("Radius (m)", min_value=0.0001, value=2.0)
+    if st.button("Solve"):
+        st.write(solver.circular_motion(v, r))
+
+elif problem == "Lorentz Force":
+    st.subheader("Lorentz Force: F = qvB sinθ")
+    q = st.number_input("Charge (C)", value=1.6e-19)
+    v = st.number_input("Velocity (m/s)", value=1e6)
+    B = st.number_input("Magnetic Field (T)", value=0.01)
+    angle = st.number_input("Angle (degrees)", min_value=0.0, max_value=180.0, value=90.0)
+    if st.button("Solve"):
+        st.write(solver.lorentz_force(q, v, B, angle))
+
+elif problem == "Capacitor Energy":
+    st.subheader("Capacitor Energy: U = ½CV²")
+    C = st.number_input("Capacitance (F)", min_value=0.0, value=1e-6)
+    V = st.number_input("Voltage (V)", value=5.0)
+    if st.button("Solve"):
+        st.write(solver.capacitor_energy(C, V))
+
+elif problem == "Blackbody Radiation":
+    st.subheader("Blackbody Radiation: P = σT⁴")
+    T = st.number_input("Temperature (K)", min_value=1.0, value=300.0)
+    if st.button("Solve"):
+        st.write(solver.blackbody_radiation(T))
